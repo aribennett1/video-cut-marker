@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Mark precise video cuts locally and export instructions for your editor."><title>Video Cut Marker</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="styles.css"></head>
+<body>
+<header><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">✂</span> Video Cut Marker</a><span class="local-label">LOCAL & PRIVATE</span></header>
+<main>
+  <div class="intro"><div><p class="eyebrow">A clearer way to say “cut this part.”</p><h1>Keep the good parts.</h1><p>Mark what to remove. Send the instructions to your editor.</p></div><label class="button primary file-label">Open video<input type="file" id="file" accept="video/*,.mkv,.mov,.m4v,.webm"></label></div>
+  <p class="privacy">Your video stays on your device. This tool creates editing instructions without uploading or modifying your original video.</p>
+  <p id="notice" role="status" aria-live="polite">Open a video to begin. Nothing is uploaded.</p>
+  <section id="workspace" class="workspace" aria-label="Video editing workspace" hidden>
+    <div class="editor">
+      <div class="player-head"><div><span class="eyebrow">YOUR RECORDING</span><h2 id="filename"></h2></div><span id="save-status">Saved in this browser</span></div>
+      <div class="video-wrap"><video id="video" controls playsinline preload="metadata" aria-label="Original video"></video></div>
+      <div class="transport"><button id="play">Play</button><button id="back" title="Seek backward 5 seconds">−5 s</button><button id="forward" title="Seek forward 5 seconds">+5 s</button><button id="fine-back" title="Fine seek backward 10 milliseconds">−10 ms</button><button id="fine-forward" title="Fine seek forward 10 milliseconds">+10 ms</button><output id="clock">00:00:00.000</output><span id="duration"></span><label>Speed <select id="speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label></div>
+      <div class="timeline-head"><h2>Original timeline</h2><label>Zoom <input type="range" id="zoom" min="1" max="32" value="1" step="1"></label><label><input type="checkbox" id="follow" checked> Follow playback</label></div>
+      <div id="timeline-scroll" tabindex="0" aria-label="Scrollable original timeline"><div id="timeline"><canvas id="waveform" aria-label="Audio waveform; click to seek"></canvas><div id="regions"></div><div id="playhead"></div><div id="ruler"></div></div></div>
+      <div class="timeline-foot"><div class="legend"><span class="keep">━ Keep</span><span class="remove">▨ Remove</span><span class="pending">┄ Defining cut</span></div><span id="wave-status">Preparing waveform…</span></div>
+      <div class="mark-row"><div><button id="mark" class="primary large">Start Cut <kbd>C</kbd></button><button id="cancel" hidden>Cancel Cut</button></div><p id="mark-hint">At the part you don’t want? Mark its beginning.</p></div>
+      <div class="mode-row"><label>Playback mode <select id="mode"><option value="original">Original Video</option><option value="edited">Preview Edited Video</option></select></label><span>Preview transitions are approximate; source timestamps stay unchanged.</span></div>
+      <p id="precision" class="muted">Fine seeking uses 10 ms steps. Browser seeking precision varies; no fixed frame rate is assumed.</p>
+    </div>
+    <aside class="cut-panel"><div class="panel-heading"><h2>Cut list <span id="count" class="badge">0</span></h2><label class="button file-label">Import JSON<input type="file" id="import" accept="application/json,.json"></label></div><p class="muted">These sections will be removed.</p><div id="cuts"></div><div class="summary"><div><span>Original length</span><strong id="original-total"></strong></div><div><span>To remove</span><strong id="removed-total" class="remove"></strong></div><div class="finished"><span>Finished length</span><strong id="finished-total"></strong></div></div><button id="export" class="primary export">Export Cut List</button><p class="muted">Downloads editing instructions, ready for your editor.</p></aside>
+  </section>
+  <section id="welcome" class="welcome"><div class="welcome-icon" aria-hidden="true">✂</div><h2>A few marks. A better video.</h2><p>Open your recording, mark the start and end of unwanted sections,<br>then export your cut list. Your original video stays intact.</p><ol><li>Open a local video</li><li>Mark sections to remove</li><li>Send your cut list</li></ol></section>
+  <section class="projects"><div class="panel-heading"><div><p class="eyebrow">PICK UP WHERE YOU LEFT OFF</p><h2>Recent projects</h2></div><span class="muted">Stored in this browser only · No device sync</span></div><div id="projects"></div></section>
+  <details class="shortcuts"><summary>Keyboard shortcuts & precision</summary><p><kbd>Space</kbd> Play / pause · <kbd>C</kbd> Start / end cut · <kbd>Esc</kbd> Cancel cut · <kbd>←</kbd> / <kbd>→</kbd> Seek 5 s · <kbd>Shift + ← / →</kbd> Seek 10 ms</p><p>Native controls provide volume and fullscreen. Presented frame timestamps are used when available; while seeking, marks use the requested position. Browsers do not provide reliable frame stepping for every format or variable-frame-rate recording. Timestamp fields display milliseconds; untouched boundaries retain full source precision.</p></details>
+</main><footer>Made for feedback, without the busywork. <span>Original video. Clear instructions.</span></footer>
+<script src="core.js"></script><script src="waveform.js"></script><script src="app.js"></script>
+</body></html>

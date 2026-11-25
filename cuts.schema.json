@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aribennett1.github.io/video-cut-marker/cuts.schema.json",
+  "title": "Video Cut Marker removal instructions v1",
+  "description": "Ranges reference the original source timeline. Application validation additionally requires startUs < endUs <= durationUs, chronological order, and no overlaps.",
+  "type": "object",
+  "required": ["schemaVersion", "operation", "timeUnit", "source", "cuts", "exportedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "operation": { "const": "remove" },
+    "timeUnit": { "const": "microseconds" },
+    "source": {
+      "type": "object", "required": ["fileName", "fileSizeBytes", "durationUs"],
+      "properties": {
+        "fileName": { "type": "string", "minLength": 1 },
+        "fileSizeBytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "durationUs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
+      }
+    },
+    "cuts": { "type": "array", "items": {
+      "type": "object", "required": ["startUs", "endUs"],
+      "properties": {
+        "startUs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "endUs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
+      }
+    } },
+    "exportedAt": { "type": "string", "format": "date-time" }
+  }
+}
