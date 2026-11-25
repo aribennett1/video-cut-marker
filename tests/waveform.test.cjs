@@ -37,8 +37,20 @@ test('unsupported decoder and AudioContext construction leave editing independen
   const broken=setup(class{constructor(){throw new Error('No audio device')}});await broken.wave.load({size:1},1);assert.ok(broken.statuses.at(-1).includes('playback'));
 });
 test('changing media cancels stale decoding and never publishes obsolete bins',async()=>{
-  let finish;const {Audio,instances}=fakeAudio({decodeAudioData:()=>new Promise(r=>{finish=r})});const {wave,changed}=setup(Audio);
-  const job=wave.load({size:1,arrayBuffer:async()=>new ArrayBuffer(1)},1);await Promise.resolve();wave.reset();finish({getChannelData:()=>new Float32Array(8000).fill(1)});await job;
+  let finish, signalStarted;
+  const started = new Promise(resolve => { signalStarted = resolve; });
+  const {Audio,instances}=fakeAudio({decodeAudioData:()=>new Promise(resolve=>{
+    finish = resolve;
+    signalStarted();
+  })});
+  const {wave,changed}=setup(Audio);
+  const job=wave.load({size:1,arrayBuffer:async()=>new ArrayBuffer(1)},1);
+  // Synchronize with the decoder rather than assuming one microtask is enough
+  // for the file read to resolve across the VM boundary.
+  await started;
+  wave.reset();
+  finish({getChannelData:()=>new Float32Array(8000).fill(1)});
+  await job;
   assert.equal(wave.complete,false);assert.equal(changed(),0);assert.equal(instances[0].state,'closed');assert.ok(wave.bins.every(v=>v===0));
 });
 test('progressive analyzer resumes routed audio even after a later full decode',async()=>{
