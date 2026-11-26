@@ -4,7 +4,7 @@ const $ = id => document.getElementById(id);
 const video = $('video');
 let project = null, projectKey = null, mediaUrl = null, openToken = 0;
 let projects = {}, storageBlocked = false, saveTimer = null;
-let selected = -1, expanded = -1, presentedUs = null, requestedUs = null;
+let selected = -1, presentedUs = null, requestedUs = null;
 let preview = null, previewModeBefore = 'original', dragging = null;
 let lastPaint = 0, lastSample = 0;
 function notice(text, error = false) { $('notice').textContent = text; $('notice').classList.toggle('error', error); }
@@ -59,7 +59,7 @@ function renderProjects() {
       const next = { ...projects }; delete next[key];
       if (storageBlocked) throw new Error('Storage could not be read, so it cannot safely be changed.');
       C.writeProjects(localStorage, next); projects = next;
-      if (key === projectKey) { project.cuts = []; project.pendingUs = null; selected = expanded = -1; render(); }
+      if (key === projectKey) { project.cuts = []; project.pendingUs = null; selected = -1; render(); }
       renderProjects(); notice('Saved project deleted.');
     })); row.append(info, actions); host.append(row);
   }
@@ -71,7 +71,7 @@ async function openFile(file) {
   video.removeAttribute('src'); video.load();
   if (mediaUrl) URL.revokeObjectURL(mediaUrl);
   mediaUrl = URL.createObjectURL(file); project = null; projectKey = null; requestedUs = presentedUs = null;
-  selected = expanded = -1; $('workspace').hidden = true; $('welcome').hidden = false;
+  selected = -1; $('workspace').hidden = true; $('welcome').hidden = false;
   notice(`Opening ${file.name}…`);
   video.onloadedmetadata = () => safely(() => {
     if (token !== openToken) return;
@@ -111,7 +111,7 @@ function applyCuts(candidate, selectCut = null) {
   }
   project.cuts = result;
   selected = selectCut ? result.findIndex(c => c.startUs <= selectCut.startUs && c.endUs >= selectCut.endUs) : -1;
-  expanded = selected; stopIndividual(); render(); persist(); return true;
+  stopIndividual(); render(); persist(); return true;
 }
 function mark() {
   if (!project) return;
@@ -146,26 +146,50 @@ function renderCuts() {
   project.cuts.forEach((cut, index) => {
     const card = document.createElement('article'); card.className = `cut${selected === index ? ' active' : ''}`;
     const heading = document.createElement('div'); heading.className = 'cut-heading';
-    heading.append(button(`Cut ${index + 1}`, () => { selected = index; render(); }), button('Delete', () => { project.cuts.splice(index, 1); selected = expanded = -1; stopIndividual(); render(); persist(); notice('Cut deleted.'); }));
+    heading.append(button(`Cut ${index + 1}`, () => { selected = index; render(); }), button('Delete', () => { project.cuts.splice(index, 1); selected = -1; stopIndividual(); render(); persist(); notice('Cut deleted.'); }));
     const times = document.createElement('div'); times.className = 'cut-times';
-    times.append(button(C.format(cut.startUs), () => { stopIndividual(); seek(cut.startUs); }), document.createTextNode(' – '), button(C.format(cut.endUs), () => { stopIndividual(); seek(cut.endUs); }));
-    times.firstChild.title = 'Seek to cut start'; times.lastChild.title = 'Seek to cut end';
-    const actions = document.createElement('div'); actions.className = 'cut-actions'; const length = document.createElement('span'); length.textContent = `${C.format(cut.endUs - cut.startUs)} removed`;
-    actions.append(button('Preview cut', () => previewCut(index)), button(expanded === index ? 'Close adjustment' : 'Adjust', () => { expanded = expanded === index ? -1 : index; selected = index; render(); }), length);
-    card.append(heading, times, actions);
-    if (expanded === index) {
-      const editor = document.createElement('div'); editor.className = 'boundary-editor';
-      for (const [boundary, label] of [['startUs','Start'],['endUs','End']]) {
-        const input = document.createElement('input'); input.type = 'text'; input.value = C.format(cut[boundary]); input.setAttribute('aria-label', `Cut ${index + 1} ${label.toLowerCase()} timestamp`);
-        const wrapper = document.createElement('label'); wrapper.textContent = `${label} · HH:MM:SS.mmm`; wrapper.append(input);
-        const original = input.value;
-        input.addEventListener('change', () => { if (input.value === original) return; if (!safely(() => editBoundary(index, boundary, C.parse(input.value)))) input.value = original; });
-        const controls = document.createElement('div'); controls.className = 'boundary-buttons';
-        controls.append(button('−10 ms', () => editBoundary(index, boundary, cut[boundary] - 10000)), button('+10 ms', () => editBoundary(index, boundary, cut[boundary] + 10000)), button('Use playhead', () => editBoundary(index, boundary, position())));
-        editor.append(wrapper, controls);
+    for (const [boundary, label] of [['startUs', 'Start'], ['endUs', 'End']]) {
+      const field = document.createElement('label'); field.className = 'cut-time-field';
+      const caption = document.createElement('span'); caption.textContent = `${label} (seconds)`;
+      const spinner = document.createElement('div'); spinner.className = 'time-spinner';
+      const input = document.createElement('input'); input.type = 'text'; input.inputMode = 'decimal';
+      input.value = (cut[boundary] / 1e6).toFixed(6).replace(/(\.\d{3}\d*?)0+$/, '$1');
+      input.dataset.boundary = boundary; input.dataset.cutIndex = index;
+      input.setAttribute('aria-label', `Cut ${index + 1} ${label.toLowerCase()} in seconds`);
+      const original = input.value;
+      function commit(value, focusTarget = 'input') {
+        const changed = safely(() => editBoundary(index, boundary, value));
+        if (!changed) { input.value = original; return false; }
+        const updatedIndex = selected;
+        const newInput = $('cuts').querySelector(`input[data-cut-index="${updatedIndex}"][data-boundary="${boundary}"]`);
+        const target = focusTarget === 'input' ? newInput : newInput?.parentElement.querySelector(`[data-direction="${focusTarget}"]`);
+        target?.focus({ preventScroll: true });
+        const previewBoundary = $('mode').value === 'edited' ? 'startUs' : boundary;
+        seek(Math.max(0, project.cuts[updatedIndex][previewBoundary] - 1000000));
+        play();
+        return true;
       }
-      card.append(editor);
+      input.addEventListener('change', () => {
+        if (input.value === original) return;
+        if (!/^\d+(?:\.\d{1,6})?$/.test(input.value.trim())) { input.value = original; notice('Enter seconds with up to six decimal places.', true); return; }
+        if (!safely(() => commit(C.toUs(Number(input.value))))) input.value = original;
+      });
+      input.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault(); commit(cut[boundary] + (event.key === 'ArrowUp' ? 100000 : -100000));
+      });
+      const arrows = document.createElement('div'); arrows.className = 'time-arrows';
+      for (const [direction, delta, glyph] of [['up', 100000, '▲'], ['down', -100000, '▼']]) {
+        const arrow = button(glyph, () => commit(cut[boundary] + delta, direction));
+        arrow.dataset.direction = direction;
+        arrow.setAttribute('aria-label', `${direction === 'up' ? 'Increase' : 'Decrease'} cut ${index + 1} ${label.toLowerCase()} by 0.1 seconds`);
+        arrow.title = `${direction === 'up' ? '+' : '−'}0.1 s · preview from one second before ${label.toLowerCase()} (cut start in edited mode)`;
+        arrows.append(arrow);
+      }
+      spinner.append(input, arrows); field.append(caption, spinner); times.append(field);
     }
+    const length = document.createElement('p'); length.className = 'cut-length'; length.textContent = `${C.format(cut.endUs - cut.startUs)} removed`;
+    card.append(heading, times, length);
     host.append(card);
   });
 }
@@ -177,9 +201,9 @@ function renderRegions() {
     region.style.left = `${cut.startUs / project.durationUs * 100}%`; region.style.width = `${(cut.endUs - cut.startUs) / project.durationUs * 100}%`;
     region.title = `Cut ${index + 1}: ${C.format(cut.startUs)} to ${C.format(cut.endUs)}`;
     const label = document.createElement('span'); label.className = 'region-label'; label.textContent = `Cut ${index + 1}`; region.append(label);
-    region.addEventListener('click', event => { event.stopPropagation(); selected = expanded = index; render(); });
+    region.addEventListener('click', event => { event.stopPropagation(); selected = index; render(); });
     if (selected === index) for (const [boundary, className] of [['startUs','start'], ['endUs','end']]) {
-      const handle = button('', () => {}); handle.className = `handle ${className}`; handle.setAttribute('aria-label', `Drag cut ${index + 1} ${className}; use Adjust for keyboard controls`);
+      const handle = button('', () => {}); handle.className = `handle ${className}`; handle.setAttribute('aria-label', `Drag cut ${index + 1} ${className}; use the timestamp fields for keyboard controls`);
       handle.addEventListener('pointerdown', event => {
         event.preventDefault(); event.stopPropagation();
         dragging = { index, boundary, value: cut[boundary], handle }; handle.setPointerCapture(event.pointerId);
@@ -324,7 +348,7 @@ $('import').addEventListener('change', async () => {
       if (!confirm('This cut list identifies a different source video. Import its timestamps into the current video anyway?')) return;
     }
     if ((project.cuts.length || project.pendingUs!==null) && !confirm('Replace the current cut list and pending cut with the imported cuts?')) return;
-    project.cuts = data.cuts; project.pendingUs=null; selected=expanded=-1; stopIndividual(); render(); persist(); notice(`Imported ${data.cuts.length} validated cuts.`);
+    project.cuts = data.cuts; project.pendingUs=null; selected=-1; stopIndividual(); render(); persist(); notice(`Imported ${data.cuts.length} validated cuts.`);
   } catch (e) { notice(`Import failed: ${e.message}`,true); }
 });
 renderProjects();

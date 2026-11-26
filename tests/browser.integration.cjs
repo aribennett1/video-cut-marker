@@ -55,8 +55,9 @@ class CDP {
     assert.equal(await evaluate('video.paused'),true);
     // Real file decoding is best effort, independent of cut creation.
     await waitFor(()=>evaluate('wave.complete || $("wave-status").textContent.includes("playback")'),'waveform generation');
-    await evaluate("selected=expanded=0;render();const input=document.querySelector('.boundary-editor input');input.value='00:00:01.250';input.dispatchEvent(new Event('change',{bubbles:true}));");
+    await evaluate("selected=0;render();const input=document.querySelector('.time-spinner input');input.value='1.250';input.dispatchEvent(new Event('change',{bubbles:true}));");
     assert.equal(await evaluate('project.cuts[0].startUs'),1250000);
+    await evaluate('video.pause()');
     await evaluate("window.confirm=()=>false;seek(1500000);mark();seek(3000000);mark();");
     assert.equal(await evaluate('project.cuts.length'),1); assert.equal(await evaluate('project.pendingUs'),1500000);
     await evaluate("window.confirm=()=>true;mark();");
@@ -99,7 +100,7 @@ class CDP {
       await delay(150);assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,`no page overflow at ${width}px`);
     }
     await client.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
-    await evaluate('selected=expanded=0;render();');await delay(100);
+    await evaluate('selected=0;render();');await delay(100);
     const screenshot=await client.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
     const screenshotPath=process.env.QA_SCREENSHOT || path.join(os.tmpdir(),'video-cut-marker-qa.png');await fs.writeFile(screenshotPath,Buffer.from(screenshot.data,'base64'));
     assert.deepEqual(client.errors,[],'no uncaught browser exceptions');
