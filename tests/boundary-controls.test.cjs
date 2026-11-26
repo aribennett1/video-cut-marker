@@ -62,10 +62,10 @@ test('invalid and overlapping boundary steps leave cuts unchanged and do not pla
     [[{startUs:0,endUs:1000000},{startUs:1050000,endUs:2000000}],'endUs','up'],
   ]) { const c=controls(cuts);c.arrows(boundary,direction).handlers.click();assert.deepEqual(c.project.cuts,cuts);assert.equal(c.state.errors.length,1);assert.deepEqual(c.state.plays,[]);assert.deepEqual(c.state.seeks,[]); }
 });
-test('direct seconds entry preserves microseconds and previews; invalid entry is rejected',()=>{
-  const c=controls([{startUs:2800417,endUs:7000123}]);let input=c.inputs()[0];assert.equal(input.value,'2.800417');
-  input.value='3.123456';input.handlers.change();assert.equal(c.project.cuts[0].startUs,3123456);assert.deepEqual(c.state.seeks,[2123456]);
-  for(const bad of ['oops','-1','Infinity','2.1234567','999999999999999999999']) { input=c.inputs()[0];input.value=bad;input.handlers.change();assert.equal(c.project.cuts[0].startUs,3123456);assert.equal(input.value,'3.123456'); }
+test('formatted timestamp entry previews; invalid entry is rejected',()=>{
+  const c=controls([{startUs:2800417,endUs:7000123}]);let input=c.inputs()[0];assert.equal(input.value,'00:00:02:800');
+  input.value='00:00:03:123';input.handlers.change();assert.equal(c.project.cuts[0].startUs,3123000);assert.deepEqual(c.state.seeks,[2123000]);
+  for(const bad of ['oops','-1','Infinity','2.1234567','999999999999999999999']) { input=c.inputs()[0];input.value=bad;input.handlers.change();assert.equal(c.project.cuts[0].startUs,3123000);assert.equal(input.value,'00:00:03:123'); }
 });
 test('keyboard arrows use the same increments and preview behavior',()=>{
   const c=controls([{startUs:2800000,endUs:7000000}]);let prevented=false;
@@ -74,9 +74,15 @@ test('keyboard arrows use the same increments and preview behavior',()=>{
 
 test('edited end adjustments from typing and keyboard preview one second before start',()=>{
   const c=controls([{startUs:2800000,endUs:7000000}], 'edited');
-  c.inputs()[1].value='7.200';c.inputs()[1].handlers.change();
+  c.inputs()[1].value='00:00:07:200';c.inputs()[1].handlers.change();
   assert.equal(c.project.cuts[0].endUs,7200000);assert.deepEqual(c.state.seeks,[1800000]);
   c.inputs()[1].handlers.keydown({key:'ArrowDown',preventDefault(){}});
   assert.equal(c.project.cuts[0].endUs,7100000);assert.deepEqual(c.state.seeks,[1800000,1800000]);
   assert.deepEqual(c.state.plays,['edited','edited']);
+});
+
+test('display formatting and unchanged input retain hidden microsecond precision',()=>{
+  const c=controls([{startUs:2800417,endUs:7000123}]);
+  c.inputs()[0].handlers.change();assert.equal(c.project.cuts[0].startUs,2800417);assert.equal(c.state.saves,0);
+  c.arrows('startUs','up').handlers.click();assert.equal(c.project.cuts[0].startUs,2900417);assert.equal(c.inputs()[0].value,'00:00:02:900');
 });

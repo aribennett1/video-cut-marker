@@ -55,7 +55,7 @@ class CDP {
     assert.equal(await evaluate('video.paused'),true);
     // Real file decoding is best effort, independent of cut creation.
     await waitFor(()=>evaluate('wave.complete || $("wave-status").textContent.includes("playback")'),'waveform generation');
-    await evaluate("selected=0;render();const input=document.querySelector('.time-spinner input');input.value='1.250';input.dispatchEvent(new Event('change',{bubbles:true}));");
+    await evaluate("selected=0;render();const input=document.querySelector('.time-spinner input');input.value='00:00:01:250';input.dispatchEvent(new Event('change',{bubbles:true}));");
     assert.equal(await evaluate('project.cuts[0].startUs'),1250000);
     await evaluate('video.pause()');
     await evaluate("window.confirm=()=>false;seek(1500000);mark();seek(3000000);mark();");

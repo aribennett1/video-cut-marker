@@ -150,12 +150,12 @@ function renderCuts() {
     const times = document.createElement('div'); times.className = 'cut-times';
     for (const [boundary, label] of [['startUs', 'Start'], ['endUs', 'End']]) {
       const field = document.createElement('label'); field.className = 'cut-time-field';
-      const caption = document.createElement('span'); caption.textContent = `${label} (seconds)`;
+      const caption = document.createElement('span'); caption.textContent = label;
       const spinner = document.createElement('div'); spinner.className = 'time-spinner';
-      const input = document.createElement('input'); input.type = 'text'; input.inputMode = 'decimal';
-      input.value = (cut[boundary] / 1e6).toFixed(6).replace(/(\.\d{3}\d*?)0+$/, '$1');
+      const input = document.createElement('input'); input.type = 'text';
+      input.value = C.format(cut[boundary]).replace('.', ':');
       input.dataset.boundary = boundary; input.dataset.cutIndex = index;
-      input.setAttribute('aria-label', `Cut ${index + 1} ${label.toLowerCase()} in seconds`);
+      input.setAttribute('aria-label', `Cut ${index + 1} ${label.toLowerCase()} timestamp in HH:MM:SS:sss`);
       const original = input.value;
       function commit(value, focusTarget = 'input') {
         const changed = safely(() => editBoundary(index, boundary, value));
@@ -171,8 +171,7 @@ function renderCuts() {
       }
       input.addEventListener('change', () => {
         if (input.value === original) return;
-        if (!/^\d+(?:\.\d{1,6})?$/.test(input.value.trim())) { input.value = original; notice('Enter seconds with up to six decimal places.', true); return; }
-        if (!safely(() => commit(C.toUs(Number(input.value))))) input.value = original;
+        if (!safely(() => commit(C.parse(input.value.trim().replace(/:(\d{3})$/, '.$1'))))) input.value = original;
       });
       input.addEventListener('keydown', event => {
         if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
